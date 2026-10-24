@@ -1,0 +1,64 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
+# Creates the PostgreSQL database, the API (web service) and the React app (static site).
+databases:
+  - name: helpdesk-db
+    plan: free
+    databaseName: helpdesk
+    user: helpdesk
+
+services:
+  - type: web
+    name: helpdesk-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    # Migrations run on every start so the schema always matches the deployed code.
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: helpdesk-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      # Set to the static site's URL after the first deploy, e.g. https://helpdesk-web.onrender.com
+      - key: CLIENT_URL
+        sync: false
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+  - type: web
+    name: helpdesk-web
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # Let React Router handle deep links like /tickets/12.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Set to the API's URL, e.g. https://helpdesk-api.onrender.com
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SHOW_DEMO_ACCOUNTS
+        value: "true"

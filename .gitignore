@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Secrets — only .env.example files are committed
+.env
+.env.*
+!.env.example
+
+# Uploaded attachments (user data, never committed)
+uploads/
+uploads-test/
+
+# Build output
+dist/
+coverage/
+
+# Logs / OS / editor
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
