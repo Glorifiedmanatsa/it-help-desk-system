@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
-import { EmptyState, ErrorBox, PageHeader, Pagination } from '../components/ui.jsx';
+import { Icon } from '../components/icons.jsx';
+import { CategoryBadge, EmptyState, ErrorBox, PageHeader, Pagination, Person } from '../components/ui.jsx';
 import { CATEGORY_LABELS, formatDate } from '../lib/labels.js';
 
 const PAGE_SIZE = 12;
@@ -34,11 +35,11 @@ export default function KnowledgeBase() {
         subtitle="Solutions from past tickets. Visible to IT staff only."
         actions={
           <Link className="btn btn-primary" to="/knowledge/new">
-            + New article
+            <Icon name="plus" size={16} /> New article
           </Link>
         }
       />
-      <div className="filters card">
+      <div className="filters toolbar">
         <label className="filter filter-search">
           <span>Search</span>
           <input type="search" placeholder="Title, problem, solution or tag" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -67,7 +68,7 @@ export default function KnowledgeBase() {
           <div className="article-grid">
             {data.items.map((article) => (
               <Link key={article.id} to={`/knowledge/${article.id}`} className="card article-card">
-                <span className="badge badge-neutral">{CATEGORY_LABELS[article.category]}</span>
+                <CategoryBadge category={article.category} />
                 <h2>{article.title}</h2>
                 <p className="article-excerpt">{article.problem}</p>
                 <div className="tag-row">
@@ -77,9 +78,10 @@ export default function KnowledgeBase() {
                     </span>
                   ))}
                 </div>
-                <p className="muted small">
-                  {article.createdBy.name} · updated {formatDate(article.updatedAt)}
-                </p>
+                <div className="article-foot">
+                  <Person user={article.createdBy} />
+                  <span>Updated {formatDate(article.updatedAt)}</span>
+                </div>
               </Link>
             ))}
           </div>

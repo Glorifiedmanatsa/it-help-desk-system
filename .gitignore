@@ -5,6 +5,12 @@ node_modules/
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+
+# Database dumps (may contain real user data)
+*.dump
+*.sql.gz
 
 # Uploaded attachments (user data, never committed)
 uploads/

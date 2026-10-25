@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { ErrorBox, PageHeader } from '../components/ui.jsx';
-import { CATEGORY_LABELS, PRIORITY_HINTS, PRIORITY_LABELS, formatBytes } from '../lib/labels.js';
+import { Icon } from '../components/icons.jsx';
+import { ErrorBox, PageHeader, PanelSection, PriorityBadge } from '../components/ui.jsx';
+import { CATEGORY_LABELS, PRIORITY_HINTS, PRIORITY_LABELS, SLA_LABELS, formatBytes } from '../lib/labels.js';
 
 export const ACCEPTED_FILES = '.pdf,.png,.jpg,.jpeg,.docx';
 export const MAX_FILE_MB = 5;
@@ -53,70 +54,101 @@ export default function NewTicket() {
   };
 
   return (
-    <div className="narrow">
+    <div>
       <PageHeader title="Report a problem" subtitle="Tell IT what’s wrong. You’ll get email updates as your ticket progresses." />
-      <form className="card form" onSubmit={submit}>
-        <ErrorBox error={error} />
-        <label>
-          Short summary
-          <input required minLength={5} maxLength={200} placeholder="e.g. Laptop won’t connect to Wi-Fi" {...field('title')} />
-        </label>
-        <div className="form-row">
+      <div className="layout-panel">
+        <form className="card form form-card" onSubmit={submit}>
+          <ErrorBox error={error} />
           <label>
-            Category
-            <select required {...field('category')}>
-              <option value="" disabled>
-                Choose a category
-              </option>
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+            Short summary
+            <input required minLength={5} maxLength={200} placeholder="e.g. Laptop won’t connect to Wi-Fi" {...field('title')} />
+          </label>
+          <div className="form-row">
+            <label>
+              Category
+              <select required {...field('category')}>
+                <option value="" disabled>
+                  Choose a category
                 </option>
-              ))}
-            </select>
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              How urgent is it?
+              <select {...field('suggestedUrgency')}>
+                {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label} — {PRIORITY_HINTS[value]}
+                  </option>
+                ))}
+              </select>
+              <span className="hint">IT will confirm the final priority.</span>
+            </label>
+          </div>
+          <label>
+            Description
+            <textarea required minLength={10} maxLength={10000} rows={7}
+              placeholder="What happened? When did it start? Any error messages?" {...field('description')} />
           </label>
           <label>
-            How urgent is it?
-            <select {...field('suggestedUrgency')}>
-              {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label} — {PRIORITY_HINTS[value]}
-                </option>
-              ))}
-            </select>
-            <span className="hint">IT will confirm the final priority.</span>
+            Attachments <span className="muted">(optional)</span>
+            <input type="file" multiple accept={ACCEPTED_FILES} onChange={onFiles} />
+            <span className="hint">
+              Up to {MAX_FILES} files, {MAX_FILE_MB}MB each. PDF, PNG, JPG or DOCX.
+            </span>
           </label>
-        </div>
-        <label>
-          Description
-          <textarea required minLength={10} maxLength={10000} rows={7}
-            placeholder="What happened? When did it start? Any error messages?" {...field('description')} />
-        </label>
-        <label>
-          Attachments <span className="muted">(optional)</span>
-          <input type="file" multiple accept={ACCEPTED_FILES} onChange={onFiles} />
-          <span className="hint">
-            Up to {MAX_FILES} files, {MAX_FILE_MB}MB each. PDF, PNG, JPG or DOCX.
-          </span>
-        </label>
-        {files.length > 0 && (
-          <ul className="file-list">
-            {files.map((file) => (
-              <li key={file.name}>
-                {file.name} <span className="muted">({formatBytes(file.size)})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" disabled={busy}>
-            {busy ? 'Submitting…' : 'Submit ticket'}
-          </button>
-        </div>
-      </form>
+          {files.length > 0 && (
+            <ul className="file-list">
+              {files.map((file) => (
+                <li key={file.name}>
+                  {file.name} <span className="muted">({formatBytes(file.size)})</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="form-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" disabled={busy}>
+              {busy ? 'Submitting…' : 'Submit ticket'}
+            </button>
+          </div>
+        </form>
+
+        <aside className="info-panel" aria-label="Help">
+          <PanelSection title="What happens next">
+            <ol className="steps">
+              <li>Your ticket gets a number like <strong>HD-0042</strong> and appears under My tickets.</li>
+              <li>IT reviews it, confirms the priority and assigns a technician.</li>
+              <li>You’ll be emailed when it’s assigned, when IT replies and when it’s resolved.</li>
+              <li>Close it once it’s fixed, or reopen it within 7 days if it isn’t.</li>
+            </ol>
+          </PanelSection>
+          <PanelSection title="Response targets">
+            <dl className="details">
+              {Object.keys(PRIORITY_LABELS).map((value) => (
+                <div className="details-row" key={value}>
+                  <dt>
+                    <PriorityBadge priority={value} />
+                  </dt>
+                  <dd>{SLA_LABELS[value]}</dd>
+                </div>
+              ))}
+            </dl>
+          </PanelSection>
+          <PanelSection title="Tips">
+            <p className="panel-note">
+              <Icon name="info" size={14} /> Include any error messages, when it started and what you’ve already tried. A
+              screenshot helps a lot.
+            </p>
+          </PanelSection>
+        </aside>
+      </div>
     </div>
   );
 }

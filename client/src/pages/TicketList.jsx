@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { EmptyState, ErrorBox, PageHeader, Pagination, PriorityBadge, SlaBadge, StatusBadge } from '../components/ui.jsx';
-import { ACTIVE_STATUSES, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, formatDateTime } from '../lib/labels.js';
+import { Icon } from '../components/icons.jsx';
+import { CategoryBadge, EmptyState, ErrorBox, PageHeader, Pagination, Person, PriorityBadge, SlaBadge, StatusBadge } from '../components/ui.jsx';
+import { ACTIVE_STATUSES, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, formatDateTime, isStaff } from '../lib/labels.js';
 
 const PAGE_SIZE = 20;
 
@@ -91,12 +92,12 @@ export default function TicketList({ mode }) {
         subtitle={staffView ? 'Everything reported to IT.' : 'Tickets you have submitted.'}
         actions={
           <Link className="btn btn-primary" to="/tickets/new">
-            + New ticket
+            <Icon name="plus" size={16} /> New ticket
           </Link>
         }
       />
 
-      <div className="filters card">
+      <div className="filters toolbar">
         <label className="filter filter-search">
           <span>Search</span>
           <input type="search" placeholder="Title or HD-0001" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -146,53 +147,70 @@ export default function TicketList({ mode }) {
 
       {data && data.items.length > 0 && (
         <>
-          <p className="muted result-count">
-            {data.total} ticket{data.total === 1 ? '' : 's'}
-          </p>
-          <table className="table ticket-table">
-            <thead>
-              <tr>
-                <th>Ticket</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Category</th>
-                {staffView && <th>Submitted by</th>}
-                <th>Assigned to</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((ticket) => (
-                <tr key={ticket.id} className="clickable" onClick={() => navigate(`/tickets/${ticket.id}`)}>
-                  <td data-label="Ticket">
-                    <Link to={`/tickets/${ticket.id}`} onClick={(e) => e.stopPropagation()}>
-                      {ticket.code}
-                    </Link>
-                  </td>
-                  <td data-label="Title" className="cell-title">
-                    {ticket.title}
-                    {ticket._count.attachments > 0 && <span className="muted" title="Has attachments"> 📎</span>}
-                  </td>
-                  <td data-label="Status">
-                    <StatusBadge status={ticket.status} />
-                  </td>
-                  <td data-label="Priority">
-                    <div className="badge-stack">
-                      <PriorityBadge priority={ticket.priority} suggested={ticket.suggestedUrgency} />
-                      <SlaBadge sla={ticket.sla} />
-                    </div>
-                  </td>
-                  <td data-label="Category">{CATEGORY_LABELS[ticket.category]}</td>
-                  {staffView && <td data-label="Submitted by">{ticket.submittedBy.name}</td>}
-                  <td data-label="Assigned to">{ticket.assignedTo?.name ?? <span className="muted">Unassigned</span>}</td>
-                  <td data-label="Created" className="nowrap">
-                    {formatDateTime(ticket.createdAt)}
-                  </td>
+          <div className="table-card">
+            <div className="table-card-header">
+              <span className="result-count">
+                {data.total} ticket{data.total === 1 ? '' : 's'}
+              </span>
+            </div>
+            <table className="table ticket-table">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Category</th>
+                  {staffView && <th>Submitted by</th>}
+                  <th>Assigned to</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.items.map((ticket) => (
+                  <tr key={ticket.id} className="clickable" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                    <td data-label="Ticket">
+                      <Link className="ticket-key-link" to={`/tickets/${ticket.id}`} onClick={(e) => e.stopPropagation()}>
+                        {ticket.code}
+                      </Link>
+                    </td>
+                    <td data-label="Title" className="cell-title">
+                      {ticket.title}
+                      {ticket._count.attachments > 0 && (
+                        <span className="attach-flag" title="Has attachments">
+                          <Icon name="paperclip" size={14} />
+                          <span className="sr-only">Has attachments</span>
+                        </span>
+                      )}
+                    </td>
+                    <td data-label="Status">
+                      <StatusBadge status={ticket.status} />
+                    </td>
+                    <td data-label="Priority">
+                      <div className="badge-stack">
+                        <PriorityBadge priority={ticket.priority} suggested={ticket.suggestedUrgency} />
+                        {isStaff(user) && <SlaBadge sla={ticket.sla} />}
+                      </div>
+                    </td>
+                    <td data-label="Category">
+                      <CategoryBadge category={ticket.category} />
+                    </td>
+                    {staffView && (
+                      <td data-label="Submitted by">
+                        <Person user={ticket.submittedBy} />
+                      </td>
+                    )}
+                    <td data-label="Assigned to">
+                      <Person user={ticket.assignedTo} fallback="Unassigned" />
+                    </td>
+                    <td data-label="Created" className="nowrap">
+                      {formatDateTime(ticket.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <Pagination page={data.page} pageSize={data.pageSize} total={data.total} onPage={(p) => setFilter('page', p)} />
         </>
       )}

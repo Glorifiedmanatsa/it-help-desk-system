@@ -128,7 +128,7 @@ export default function Reports() {
     <div>
       <PageHeader title="Reports" subtitle="Response times, resolution times and SLA performance for tickets created in the selected range." />
 
-      <div className="filters card">
+      <div className="filters toolbar">
         <div className="preset-row" role="group" aria-label="Date range presets">
           {PRESETS.map((p) => {
             const active = JSON.stringify(presetRange(p.days)) === JSON.stringify(applied);

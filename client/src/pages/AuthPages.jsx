@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { homePathFor, useAuth } from '../auth/AuthContext.jsx';
+import { Brand } from '../components/Layout.jsx';
+import { Icon } from '../components/icons.jsx';
 import { ErrorBox } from '../components/ui.jsx';
 
 const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true';
@@ -11,17 +13,37 @@ const DEMO_ACCOUNTS = [
 ];
 const DEMO_PASSWORD = 'Password123!';
 
-function AuthCard({ title, children, footer }) {
+const SELLING_POINTS = [
+  'Report IT problems and follow them to resolution',
+  'Clear priorities and response-time targets',
+  'A full history of every change and reply',
+];
+
+function AuthCard({ title, subtitle, children, footer }) {
   return (
     <div className="auth-page">
-      <div className="auth-card">
-        <div className="brand brand-lg">
-          <span className="brand-mark" aria-hidden="true">HD</span> IT Help Desk
+      <aside className="auth-brand">
+        <Brand />
+        <div className="auth-pitch">
+          <h2>IT support, tracked from request to resolution.</h2>
+          <ul className="auth-points">
+            {SELLING_POINTS.map((point) => (
+              <li key={point}>
+                <Icon name="check" size={16} /> {point}
+              </li>
+            ))}
+          </ul>
         </div>
-        <h1>{title}</h1>
-        {children}
-        <p className="auth-footer">{footer}</p>
-      </div>
+        <p className="auth-brand-foot">Internal IT service desk</p>
+      </aside>
+      <main className="auth-main">
+        <div className="auth-card">
+          <h1>{title}</h1>
+          {subtitle && <p className="page-subtitle">{subtitle}</p>}
+          {children}
+          <p className="auth-footer">{footer}</p>
+        </div>
+      </main>
     </div>
   );
 }
@@ -55,7 +77,7 @@ export function Login() {
   };
 
   return (
-    <AuthCard title="Sign in" footer={<>No account yet? <Link to="/register">Create one</Link></>}>
+    <AuthCard title="Sign in" subtitle="Use your work account to continue." footer={<>No account yet? <Link to="/register">Create one</Link></>}>
       <form onSubmit={submit} className="form">
         <ErrorBox error={error} />
         <label>
@@ -117,7 +139,7 @@ export function Register() {
   const field = (key) => ({ value: form[key], onChange: (e) => setForm({ ...form, [key]: e.target.value }) });
 
   return (
-    <AuthCard title="Create your account" footer={<>Already registered? <Link to="/login">Sign in</Link></>}>
+    <AuthCard title="Create your account" subtitle="New accounts start as employees." footer={<>Already registered? <Link to="/login">Sign in</Link></>}>
       <form onSubmit={submit} className="form">
         <ErrorBox error={error} />
         <label>

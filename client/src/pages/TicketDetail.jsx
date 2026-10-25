@@ -2,16 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, download } from '../api.js';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { ErrorBox, PageLoader, PriorityBadge, SlaBadge, StatusBadge } from '../components/ui.jsx';
+import { Icon } from '../components/icons.jsx';
 import {
-  CATEGORY_LABELS,
-  PRIORITY_LABELS,
-  SLA_LABELS,
-  STATUS_LABELS,
-  formatBytes,
-  formatDateTime,
-  isStaff,
-} from '../lib/labels.js';
+  Avatar,
+  CategoryBadge,
+  ErrorBox,
+  PageLoader,
+  PanelSection,
+  Person,
+  PriorityBadge,
+  SlaBadge,
+  StatusBadge,
+} from '../components/ui.jsx';
+import { PRIORITY_LABELS, SLA_LABELS, STATUS_LABELS, formatBytes, formatDateTime, isStaff } from '../lib/labels.js';
 import { ACCEPTED_FILES, checkFiles } from './NewTicket.jsx';
 
 // Button text for each status change, depending on where the ticket is now.
@@ -51,10 +54,11 @@ function StaffControls({ ticket, user, staff, run, busy }) {
   const [assigneeId, setAssigneeId] = useState('');
   const canAssign = ticket.status !== 'CLOSED' && (!ticket.assignedTo || user.role === 'ADMIN');
   const others = staff.filter((s) => s.id !== ticket.assignedTo?.id);
+  // Closed tickets can't be assigned or reprioritised, so there is nothing to show.
+  if (ticket.status === 'CLOSED') return null;
 
   return (
-    <div className="side-section">
-      <h3>Triage</h3>
+    <PanelSection title="Triage">
       {canAssign && (
         <div className="control">
           <label htmlFor="assignee">{ticket.assignedTo ? 'Reassign to' : 'Assign to'}</label>
@@ -95,21 +99,21 @@ function StaffControls({ ticket, user, staff, run, busy }) {
           </select>
         </div>
       )}
-    </div>
+    </PanelSection>
   );
 }
 
 function StatusActions({ ticket, run, busy }) {
   const [resolving, setResolving] = useState(false);
   const [notes, setNotes] = useState(ticket.resolutionNotes ?? '');
-  if (ticket.allowedTransitions.length === 0) return null;
-
   const change = (status, extra = {}) => run(`/tickets/${ticket.id}/status`, { status, ...extra }, 'PATCH');
 
   return (
-    <div className="side-section">
-      <h3>Status</h3>
-      {!resolving && (
+    <PanelSection title="Status" className="panel-status">
+      <div className="status-current">
+        <StatusBadge status={ticket.status} />
+      </div>
+      {ticket.allowedTransitions.length > 0 && !resolving && (
         <div className="button-stack">
           {ticket.allowedTransitions.map((to) => (
             <button key={to} disabled={busy}
@@ -126,7 +130,7 @@ function StatusActions({ ticket, run, busy }) {
           change('RESOLVED', { resolutionNotes: notes }).then((ok) => ok && setResolving(false));
         }}>
           <label>
-            Resolution notes <span className="muted">(required — the user will see these)</span>
+            Resolution notes <span className="hint">Required — the requester will see these.</span>
             <textarea rows={5} required maxLength={10000} value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="What was wrong and how it was fixed" />
           </label>
@@ -143,14 +147,22 @@ function StatusActions({ ticket, run, busy }) {
       {ticket.status === 'RESOLVED' && ticket.allowedTransitions.includes('CLOSED') && (
         <p className="hint">You can reopen within 7 days of the ticket being resolved.</p>
       )}
-    </div>
+    </PanelSection>
   );
 }
 
-function Comments({ ticket, user, run, busy }) {
+function CommentComposer({ ticket, user, run, busy }) {
   const [body, setBody] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const staff = isStaff(user);
+
+  if (ticket.status === 'CLOSED') {
+    return (
+      <p className="composer-closed">
+        <Icon name="lock" size={14} /> This ticket is closed. Submit a new ticket if the problem comes back.
+      </p>
+    );
+  }
 
   const submit = async (event) => {
     event.preventDefault();
@@ -162,45 +174,119 @@ function Comments({ ticket, user, run, busy }) {
   };
 
   return (
-    <section className="card">
-      <h2>Conversation</h2>
-      {ticket.comments.length === 0 && <p className="muted">No comments yet.</p>}
-      <ol className="comments">
-        {ticket.comments.map((c) => (
-          <li key={c.id} className={`comment ${c.isInternal ? 'internal' : ''}`}>
-            <div className="comment-meta">
-              <strong>{c.author.name}</strong>
-              {c.author.role !== 'EMPLOYEE' && <span className="role-pill">IT</span>}
-              {c.isInternal && <span className="badge badge-internal">Internal note</span>}
-              <span className="muted">{formatDateTime(c.createdAt)}</span>
-            </div>
-            <p className="comment-body">{c.body}</p>
-          </li>
-        ))}
-      </ol>
-      {ticket.status !== 'CLOSED' ? (
-        <form className="form" onSubmit={submit}>
-          <label>
-            <span className="sr-only">Add a comment</span>
-            <textarea rows={3} required maxLength={5000} value={body} onChange={(e) => setBody(e.target.value)}
-              placeholder={isInternal ? 'Internal note — only IT staff will see this' : 'Write a reply…'} />
-          </label>
-          <div className="form-actions spread">
-            {staff ? (
-              <label className="checkbox">
-                <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
-                Internal note (hidden from the submitter)
-              </label>
-            ) : (
-              <span />
-            )}
-            <button className="btn btn-primary" disabled={busy || !body.trim()}>
-              {isInternal ? 'Add note' : 'Send reply'}
+    <form className={`composer ${isInternal ? 'composer-internal' : ''}`} onSubmit={submit}>
+      <Avatar name={user.name} />
+      <div className="composer-body">
+        <label>
+          <span className="sr-only">Add a comment</span>
+          <textarea rows={3} required maxLength={5000} value={body} onChange={(e) => setBody(e.target.value)}
+            placeholder={isInternal ? 'Internal note — only IT staff will see this' : 'Write a reply…'} />
+        </label>
+        <div className="form-actions spread">
+          {staff ? (
+            <label className="checkbox">
+              <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
+              Internal note (hidden from the requester)
+            </label>
+          ) : (
+            <span />
+          )}
+          <button className="btn btn-primary" disabled={busy || !body.trim()}>
+            {isInternal ? 'Add note' : 'Send reply'}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+const COMMENT_EVENTS = ['comment', 'internal_note'];
+const ACTIVITY_TABS = [
+  ['all', 'All'],
+  ['comments', 'Comments'],
+  ['history', 'History'],
+];
+
+// Newest first. "All" shows each comment once (not also its "added a comment" history row).
+function activityEntries(ticket, tab) {
+  const comments =
+    tab === 'history' ? [] : ticket.comments.map((c) => ({ kind: 'comment', key: `c${c.id}`, id: c.id, at: new Date(c.createdAt), item: c }));
+  const history =
+    tab === 'comments'
+      ? []
+      : ticket.history
+          .filter((h) => tab === 'history' || !COMMENT_EVENTS.includes(h.fieldChanged))
+          .map((h) => ({ kind: 'history', key: `h${h.id}`, id: h.id, at: new Date(h.changedAt), item: h }));
+  return [...comments, ...history].sort((a, b) => b.at - a.at || b.id - a.id);
+}
+
+function CommentItem({ comment }) {
+  return (
+    <li className={`activity-item activity-comment ${comment.isInternal ? 'internal' : ''}`}>
+      <Avatar name={comment.author.name} />
+      <div className="activity-body">
+        <div className="activity-meta">
+          <strong>{comment.author.name}</strong>
+          {comment.author.role !== 'EMPLOYEE' && <span className="role-pill">IT</span>}
+          {comment.isInternal && (
+            <span className="badge badge-internal">
+              <Icon name="lock" size={12} /> Internal note
+            </span>
+          )}
+          <time className="activity-time" dateTime={comment.createdAt}>
+            {formatDateTime(comment.createdAt)}
+          </time>
+        </div>
+        <p className="comment-body">{comment.body}</p>
+      </div>
+    </li>
+  );
+}
+
+function HistoryItem({ entry }) {
+  return (
+    <li className={`activity-item activity-history ${entry.fieldChanged === 'internal_note' ? 'internal' : ''}`}>
+      <span className="history-icon">
+        <Icon name="history" size={14} />
+      </span>
+      <div className="activity-body">
+        <span>
+          <strong>{entry.changedBy.name}</strong> {describeHistory(entry)}
+        </span>
+        <time className="activity-time" dateTime={entry.changedAt}>
+          {formatDateTime(entry.changedAt)}
+        </time>
+      </div>
+    </li>
+  );
+}
+
+function Activity({ ticket, user, run, busy }) {
+  const [tab, setTab] = useState('all');
+  const entries = activityEntries(ticket, tab);
+
+  return (
+    <section className="card activity">
+      <div className="card-header">
+        <h2>Activity</h2>
+        <div className="tabs" role="tablist" aria-label="Show activity">
+          {ACTIVITY_TABS.map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key}
+              className={`tab ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
+              {label}
             </button>
-          </div>
-        </form>
+          ))}
+        </div>
+      </div>
+      <CommentComposer ticket={ticket} user={user} run={run} busy={busy} />
+      {entries.length === 0 ? (
+        <p className="muted activity-empty">{tab === 'comments' ? 'No comments yet.' : 'No activity yet.'}</p>
       ) : (
-        <p className="muted">This ticket is closed. Submit a new ticket if the problem comes back.</p>
+        <ol className="activity-feed">
+          {entries.map((entry) =>
+            entry.kind === 'comment' ? <CommentItem key={entry.key} comment={entry.item} /> : <HistoryItem key={entry.key} entry={entry.item} />,
+          )}
+        </ol>
       )}
     </section>
   );
@@ -223,27 +309,50 @@ function Attachments({ ticket, run, busy }) {
   const get = (a) => download(`/tickets/${ticket.id}/attachments/${a.id}`, null, a.originalName).catch(setError);
 
   return (
-    <div className="side-section">
-      <h3>Attachments</h3>
+    <section className="card">
+      <div className="card-header">
+        <h2>
+          Attachments <span className="count">{ticket.attachments.length}</span>
+        </h2>
+        {ticket.status !== 'CLOSED' && (
+          <label className="btn btn-ghost btn-sm file-button">
+            <Icon name="upload" size={14} /> Add files
+            <input type="file" multiple accept={ACCEPTED_FILES} onChange={upload} disabled={busy} />
+          </label>
+        )}
+      </div>
       <ErrorBox error={error} />
-      {ticket.attachments.length === 0 && <p className="muted">None</p>}
-      <ul className="attachment-list">
-        {ticket.attachments.map((a) => (
-          <li key={a.id}>
-            <button className="btn btn-link" onClick={() => get(a)}>
-              {a.originalName}
-            </button>{' '}
-            <span className="muted">{formatBytes(a.size)}</span>
-          </li>
-        ))}
-      </ul>
-      {ticket.status !== 'CLOSED' && (
-        <label className="btn btn-ghost btn-sm file-button">
-          + Add files
-          <input type="file" multiple accept={ACCEPTED_FILES} onChange={upload} disabled={busy} />
-        </label>
+      {ticket.attachments.length === 0 ? (
+        <p className="muted">No files attached.</p>
+      ) : (
+        <ul className="attachment-list">
+          {ticket.attachments.map((a) => (
+            <li key={a.id}>
+              <button type="button" className="attachment" onClick={() => get(a)} title={`Download ${a.originalName}`}>
+                <span className="attachment-icon">
+                  <Icon name="file" size={18} />
+                </span>
+                <span className="attachment-text">
+                  <span className="attachment-name">{a.originalName}</span>
+                  <span className="attachment-meta">
+                    {formatBytes(a.size)} · {a.uploadedBy?.name}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </section>
+  );
+}
+
+function DateRow({ label, value }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>{value ? formatDateTime(value) : <span className="muted">—</span>}</dd>
+    </>
   );
 }
 
@@ -288,6 +397,9 @@ export default function TicketDetail() {
     }
   };
 
+  const backTo = staffUser ? '/tickets' : '/my-tickets';
+  const backLabel = staffUser ? 'All tickets' : 'My tickets';
+
   if (error) {
     return (
       <div className="narrow">
@@ -302,21 +414,31 @@ export default function TicketDetail() {
 
   return (
     <div className="ticket-page">
-      <div className="ticket-heading">
-        <Link to={staffUser ? '/tickets' : '/my-tickets'} className="back-link">
-          ← {staffUser ? 'All tickets' : 'My tickets'}
-        </Link>
-        <p className="ticket-code">{ticket.code}</p>
-        <h1>{ticket.title}</h1>
+      <nav className="breadcrumbs" aria-label="Breadcrumb">
+        <Link to={backTo}>{backLabel}</Link>
+        <Icon name="chevronRight" size={14} />
+        <span aria-current="page">{ticket.code}</span>
+      </nav>
+
+      <header className="ticket-header">
+        <div className="ticket-key">
+          <Icon name="ticket" size={18} />
+          {ticket.code}
+        </div>
+        <h1 className="ticket-title">{ticket.title}</h1>
         <div className="badge-row">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} suggested={ticket.suggestedUrgency} />
-          {staffUser && <SlaBadge sla={ticket.sla} verbose />}
+          <CategoryBadge category={ticket.category} />
+          {staffUser && <SlaBadge sla={ticket.sla} />}
         </div>
-      </div>
+      </header>
 
       {location.state?.created && (
-        <div className="alert alert-success">Ticket submitted. We’ll email you when IT picks it up.</div>
+        <div className="alert alert-success">
+          <Icon name="check" />
+          <span>Ticket submitted. We’ll email you when IT picks it up.</span>
+        </div>
       )}
       <ErrorBox error={actionError} />
 
@@ -329,71 +451,84 @@ export default function TicketDetail() {
 
           {ticket.resolutionNotes && (
             <section className="card card-resolution">
-              <h2>Resolution</h2>
+              <div className="card-header">
+                <h2>
+                  <Icon name="check" /> Resolution
+                </h2>
+                {ticket.resolvedAt && <span className="muted small">Resolved {formatDateTime(ticket.resolvedAt)}</span>}
+              </div>
               <p className="prewrap">{ticket.resolutionNotes}</p>
-              {ticket.resolvedAt && <p className="muted">Resolved {formatDateTime(ticket.resolvedAt)}</p>}
             </section>
           )}
 
-          <Comments ticket={ticket} user={user} run={run} busy={busy} />
-
-          <section className="card">
-            <h2>Timeline</h2>
-            <ol className="timeline">
-              {ticket.history.map((h) => (
-                <li key={h.id} className={h.fieldChanged === 'internal_note' ? 'internal' : ''}>
-                  <span className="timeline-dot" aria-hidden="true" />
-                  <div>
-                    <strong>{h.changedBy.name}</strong> {describeHistory(h)}
-                    <div className="muted small">{formatDateTime(h.changedAt)}</div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
+          <Attachments ticket={ticket} run={run} busy={busy} />
+          <Activity ticket={ticket} user={user} run={run} busy={busy} />
         </div>
 
-        <aside className="ticket-side card">
-          <dl className="details">
-            <dt>Submitted by</dt>
-            <dd>{ticket.submittedBy.name}</dd>
-            <dt>Assigned to</dt>
-            <dd>{ticket.assignedTo?.name ?? <span className="muted">Unassigned</span>}</dd>
-            <dt>Category</dt>
-            <dd>{CATEGORY_LABELS[ticket.category]}</dd>
-            <dt>Suggested urgency</dt>
-            <dd>{PRIORITY_LABELS[ticket.suggestedUrgency]}</dd>
-            <dt>Created</dt>
-            <dd>{formatDateTime(ticket.createdAt)}</dd>
-            {ticket.firstResponseAt && (
-              <>
-                <dt>First response</dt>
-                <dd>{formatDateTime(ticket.firstResponseAt)}</dd>
-              </>
-            )}
-            {ticket.closedAt && (
-              <>
-                <dt>Closed</dt>
-                <dd>{formatDateTime(ticket.closedAt)}</dd>
-              </>
-            )}
-          </dl>
-
+        <aside className="info-panel ticket-side" aria-label="Ticket information">
           <StatusActions key={ticket.status} ticket={ticket} run={run} busy={busy} />
+
+          <PanelSection title="Details">
+            <dl className="details">
+              <dt>Requester</dt>
+              <dd>
+                <Person user={ticket.submittedBy} />
+              </dd>
+              <dt>Assignee</dt>
+              <dd>
+                <Person user={ticket.assignedTo} fallback="Unassigned" />
+              </dd>
+              <dt>Priority</dt>
+              <dd>
+                <PriorityBadge priority={ticket.priority} suggested={ticket.suggestedUrgency} />
+              </dd>
+              <dt>Suggested urgency</dt>
+              <dd>{PRIORITY_LABELS[ticket.suggestedUrgency]}</dd>
+              <dt>Category</dt>
+              <dd>
+                <CategoryBadge category={ticket.category} />
+              </dd>
+            </dl>
+          </PanelSection>
+
           {staffUser && <StaffControls ticket={ticket} user={user} staff={staff} run={run} busy={busy} />}
-          <Attachments ticket={ticket} run={run} busy={busy} />
+
+          {staffUser && (
+            <PanelSection title="SLA — first response">
+              <div className="sla-status">
+                <SlaBadge sla={ticket.sla} verbose />
+              </div>
+              <dl className="details">
+                <dt>Target</dt>
+                <dd>{SLA_LABELS[ticket.sla.priority]}</dd>
+                <DateRow label="Due" value={ticket.sla.dueAt} />
+                <DateRow label="Responded" value={ticket.firstResponseAt} />
+              </dl>
+            </PanelSection>
+          )}
+
+          <PanelSection title="Dates">
+            <dl className="details">
+              <DateRow label="Created" value={ticket.createdAt} />
+              <DateRow label="Updated" value={ticket.updatedAt} />
+              {!staffUser && <DateRow label="First response" value={ticket.firstResponseAt} />}
+              <DateRow label="Resolved" value={ticket.resolvedAt} />
+              <DateRow label="Closed" value={ticket.closedAt} />
+            </dl>
+          </PanelSection>
 
           {staffUser && (ticket.knowledgeArticle || canSaveToKb) && (
-            <div className="side-section">
-              <h3>Knowledge base</h3>
+            <PanelSection title="Knowledge base">
               {ticket.knowledgeArticle ? (
-                <Link to={`/knowledge/${ticket.knowledgeArticle.id}`}>{ticket.knowledgeArticle.title}</Link>
+                <Link className="kb-link" to={`/knowledge/${ticket.knowledgeArticle.id}`}>
+                  <Icon name="book" /> {ticket.knowledgeArticle.title}
+                </Link>
               ) : (
                 <button className="btn btn-secondary btn-block" onClick={() => navigate(`/knowledge/new?ticket=${ticket.id}`)}>
-                  Save to knowledge base
+                  <Icon name="book" /> Save to knowledge base
                 </button>
               )}
-            </div>
+            </PanelSection>
           )}
         </aside>
       </div>

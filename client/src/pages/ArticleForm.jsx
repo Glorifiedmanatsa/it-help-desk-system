@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { ErrorBox, PageHeader, PageLoader } from '../components/ui.jsx';
+import { Icon } from '../components/icons.jsx';
+import { ErrorBox, PageHeader, PageLoader, PanelSection } from '../components/ui.jsx';
 import { CATEGORY_LABELS } from '../lib/labels.js';
 
 const EMPTY = { title: '', category: '', problem: '', solution: '', tags: '' };
@@ -59,7 +60,7 @@ export default function ArticleForm() {
   };
 
   return (
-    <div className="narrow">
+    <div>
       <PageHeader
         title={id ? 'Edit article' : 'New knowledge base article'}
         subtitle={
@@ -70,47 +71,71 @@ export default function ArticleForm() {
           )
         }
       />
-      <form className="card form" onSubmit={submit}>
-        <ErrorBox error={error} />
-        <label>
-          Title
-          <input required minLength={5} maxLength={200} {...field('title')} />
-        </label>
-        <label>
-          Category
-          <select required {...field('category')}>
-            <option value="" disabled>
-              Choose a category
-            </option>
-            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+      <div className="layout-panel">
+        <form className="card form form-card" onSubmit={submit}>
+          <ErrorBox error={error} />
+          <label>
+            Title
+            <input required minLength={5} maxLength={200} {...field('title')} />
+          </label>
+          <label>
+            Category
+            <select required {...field('category')}>
+              <option value="" disabled>
+                Choose a category
               </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Problem
-          <textarea required minLength={10} maxLength={10000} rows={5} {...field('problem')} />
-        </label>
-        <label>
-          Solution
-          <textarea required minLength={10} maxLength={10000} rows={8} {...field('solution')} />
-        </label>
-        <label>
-          Tags
-          <input placeholder="vpn, outlook, password" {...field('tags')} />
-          <span className="hint">Comma-separated, up to 10.</span>
-        </label>
-        <div className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save article'}
-          </button>
-        </div>
-      </form>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Problem
+            <textarea required minLength={10} maxLength={10000} rows={5} {...field('problem')} />
+          </label>
+          <label>
+            Solution
+            <textarea required minLength={10} maxLength={10000} rows={8} {...field('solution')} />
+          </label>
+          <label>
+            Tags
+            <input placeholder="vpn, outlook, password" {...field('tags')} />
+            <span className="hint">Comma-separated, up to 10.</span>
+          </label>
+          <div className="form-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" disabled={busy}>
+              {busy ? 'Saving…' : 'Save article'}
+            </button>
+          </div>
+        </form>
+        <aside className="info-panel" aria-label="Writing tips">
+          {sourceTicket && (
+            <PanelSection title="Source ticket">
+              <Link className="kb-link" to={`/tickets/${sourceTicket.id}`}>
+                <Icon name="ticket" /> <strong>{sourceTicket.code}</strong> {sourceTicket.title}
+              </Link>
+            </PanelSection>
+          )}
+          <PanelSection title="Writing a good article">
+            <ul className="steps steps-plain">
+              <li>Use a title people would search for, e.g. the error message.</li>
+              <li>Describe the symptoms in the problem, not the person who had them.</li>
+              <li>Write the solution as numbered steps another technician can follow.</li>
+              <li>Add a few short tags such as <code>vpn</code> or <code>outlook</code>.</li>
+            </ul>
+          </PanelSection>
+          <PanelSection title="Visibility">
+            <p className="panel-note">
+              <Icon name="lock" size={14} /> Articles are visible to IT staff and admins only.
+            </p>
+          </PanelSection>
+        </aside>
+      </div>
     </div>
   );
 }
