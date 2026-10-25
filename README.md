@@ -8,16 +8,26 @@ A full-stack IT service management (ITSM) web app. Employees report IT problems,
 
 ## Screenshots
 
-<!--
-  Add PNGs to docs/screenshots/ with these names, then delete this comment and the line below.
-  ![Ticket queue](docs/screenshots/ticket-list.png)
-  ![Ticket detail](docs/screenshots/ticket-detail.png)
-  ![Reports](docs/screenshots/reports.png)
-  ![Knowledge base](docs/screenshots/knowledge-base.png)
-  ![Sign in](docs/screenshots/sign-in.png)
--->
+**Ticket detail:** ticket key, status/priority/category badges, activity feed, and a right-hand panel with requester, assignee, SLA and dates.
 
-_Screenshots coming soon. The UI uses a left sidebar, a main work area and a right-hand information panel. Ticket pages show the key (e.g. `HD-0002`), status, priority and category badges, an activity feed, and a details panel with requester, assignee, SLA and dates._
+![Ticket detail](docs/screenshots/ticket-detail.png)
+
+**Ticket queue:** filters, SLA-breach flags, requester and assignee.
+
+![Ticket queue](docs/screenshots/ticket-list.png)
+
+**Reports (admin):** response and resolution times, SLA breaches, and status and category breakdowns, with CSV export.
+
+![Reports](docs/screenshots/reports.png)
+
+<details>
+<summary>More screenshots: knowledge base and sign-in</summary>
+
+![Knowledge base](docs/screenshots/knowledge-base.png)
+
+![Sign in](docs/screenshots/sign-in.png)
+
+</details>
 
 ## Features
 
