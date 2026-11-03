@@ -4,7 +4,7 @@ import { prisma } from './prisma.js';
 
 const app = createApp();
 
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`Help desk API listening on http://localhost:${config.port} (${config.env})`);
 });
 
