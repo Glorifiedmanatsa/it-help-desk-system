@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  IT_STAFF
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_ON_USER
+  RESOLVED
+  CLOSED
+}
+
+// Declaration order matters: PostgreSQL sorts enums by it, so "desc" puts CRITICAL first.
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Category {
+  HARDWARE
+  SOFTWARE
+  NETWORK
+  ACCOUNT_ACCESS
+  EMAIL
+  PRINTER
+  OTHER
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(EMPLOYEE)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  submittedTickets Ticket[]           @relation("SubmittedTickets")
+  assignedTickets  Ticket[]           @relation("AssignedTickets")
+  comments         TicketComment[]
+  historyEntries   TicketHistory[]
+  attachments      Attachment[]
+  articles         KnowledgeArticle[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Ticket {
+  id               Int          @id @default(autoincrement())
+  title            String       @db.VarChar(200)
+  description      String
+  category         Category
+  // What the employee thinks; `priority` is the confirmed value set by IT staff.
+  suggestedUrgency Priority     @map("suggested_urgency")
+  priority         Priority?
+  status           TicketStatus @default(OPEN)
+  submittedById    Int          @map("submitted_by")
+  assignedToId     Int?         @map("assigned_to")
+  resolutionNotes  String?      @map("resolution_notes")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  firstResponseAt  DateTime?    @map("first_response_at") @db.Timestamptz(3)
+  resolvedAt       DateTime?    @map("resolved_at") @db.Timestamptz(3)
+  closedAt         DateTime?    @map("closed_at") @db.Timestamptz(3)
+
+  submittedBy      User              @relation("SubmittedTickets", fields: [submittedById], references: [id])
+  assignedTo       User?             @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  comments         TicketComment[]
+  history          TicketHistory[]
+  attachments      Attachment[]
+  // At most one article per ticket — enforced by the unique ticket_id on knowledge_articles.
+  knowledgeArticle KnowledgeArticle?
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([submittedById])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int      @map("ticket_id")
+  authorId   Int      @map("author_id")
+  body       String
+  // Internal notes are visible to IT staff and admins only.
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_comments")
+}
+
+model TicketHistory {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int      @map("ticket_id")
+  changedById  Int      @map("changed_by")
+  fieldChanged String   @map("field_changed") @db.VarChar(50)
+  oldValue     String?  @map("old_value")
+  newValue     String?  @map("new_value")
+  changedAt    DateTime @default(now()) @map("changed_at") @db.Timestamptz(3)
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId, changedAt])
+  @@map("ticket_history")
+}
+
+model Attachment {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int      @map("ticket_id")
+  uploadedById Int      @map("uploaded_by")
+  originalName String   @map("original_name") @db.VarChar(255)
+  storedName   String   @unique @map("stored_name") @db.VarChar(255)
+  mimeType     String   @map("mime_type") @db.VarChar(100)
+  size         Int
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+
+  @@index([ticketId])
+  @@map("attachments")
+}
+
+model KnowledgeArticle {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  problem     String
+  solution    String
+  category    Category
+  tags        String[]
+  ticketId    Int?     @unique @map("ticket_id")
+  createdById Int      @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  ticket    Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@index([category])
+  @@map("knowledge_articles")
+}
